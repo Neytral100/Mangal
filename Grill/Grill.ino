@@ -59,38 +59,55 @@ void PowerIncreaseDecrease (byte power_after_change)
 
 void LogicOfWork (byte result_of_scankeys) 
 {
-  if (result_of_scankeys == 1) {
-    if (mode == 0)
-      mode = 1;
-    if (mode == 1)
-      mode = 3;
-    if (mode == 2)
-      mode = 3;
+  switch (result_of_scankeys) {
+    case 1:
+      switch (mode) {
+        case 0:
+          mode = 1;
+          break;
+        case 1:
+          mode = 3;
+          break;
+        case 2:
+          mode = 3;
+          break; 
+      }
+      break;
+    case 2:
+      switch (mode) {
+        case 1:
+          object++;
+          break;
+        case 2:
+          object++;
+          break;
+        case 3:
+          mode = 2;
+          break; 
+      }      
+      break;
+    case 3:
+      switch (mode) {
+        case 2:
+          object--;
+          break;
+        case 3:
+          mode = 2;
+          break; 
+      }
+      break;
+    case 4:
+      switch (mode) {
+        case 1:
+          mode = 0;
+          break;
+        case 2:
+          mode = 0;
+          break;
+        case 3:
+          mode = 1;
+          break; 
+      }      
+      break;    
   }
-
-  if (result_of_scankeys == 2) {
-    if (mode == 1)
-      object++;
-    if (mode == 2)
-      object++;
-    if (mode == 3)
-      mode = 2;
-  }
-
-  if (result_of_scankeys == 3) {
-    if (mode == 2)
-      object--;
-    if (mode == 3)
-      mode = 2;
-  }
-
-  if (result_of_scankeys == 4) {
-    if (mode == 1)
-      mode = 0;
-    if (mode == 2)
-      mode = 0;
-    if (mode == 3)
-      mode = 1;
-  }
-  
 }
