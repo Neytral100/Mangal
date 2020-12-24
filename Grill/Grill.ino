@@ -8,11 +8,20 @@ byte result_of_scankeys = 0; //результат сканирования кн�
 byte mode; //режим
 byte object; //цель, до которой будет подтягиваться мощность
 byte power = 0; // Мощность, которая выдаётся на насос
+byte power_for_start = 30;//Мощность на которой происходит включение насоса
+byte previous_power = power_for_start//Мощность, к которой возвращается насос после включения;
 byte minimum_of_power = 20; // Минимальное значение мощности
 byte maximum_of_power = 255; //Максимально значение мощности
 byte step_power = 5; // Шаг, с которым уменьшается / увеличивается мощность
-long previous_time_change = 0; //Переменная, которая хранит время, прошедшее с последнего подтягивания мощности
-long delay_for_change = 100;//Время, которое должно пройти для следующего подтягивания мощности
+long previous_time_change_power = 0; //Переменная, которая хранит время, прошедшее с последнего подтягивания мощности
+long delay_for_change_power = 100; //Время, которое должно пройти для следующего подтягивания мощности
+long timer_for_start = 0; //Переменная, которая хранит время прошедшее с запуска насоса
+long delay_for_start = 1500; //Время, которое включается насос
+byte power_for_start = 30; //Мощность на которой происходит включение насоса
+long timer_for_change_object = 0; //Переменная, которая хранит время для задержек изменеия цели
+byte flag_for_change_object //флаг, используемый в функции ChangingTheObject
+byte little_step = 2; //маленький шаг изменения цели
+byte big_step = 10; //большой шаг изменения цели
 
 void setup() 
 {
@@ -43,7 +52,7 @@ byte ScanKeys () //сканируем кнопки
 
 void PowerIncreaseDecrease (byte power_after_change)
 {
-  if ((millis () - previous_time_change) >= delay_for_change) {
+  if ((millis () - previous_time_change_power) >= delay_for_change_power) {
     if (power > power_after_change) {
       power -= step_power;
       if (power < minimum_of_power)
@@ -53,7 +62,7 @@ void PowerIncreaseDecrease (byte power_after_change)
       if (power > maximum_of_power)
         power = maximum_of_power;
     }
-  previous_time_change = millis ();
+  previous_time_change_power = millis ();
   }
 }
 
@@ -77,6 +86,7 @@ void LogicOfWork (byte result_of_scankeys)
       switch (mode) {
         case 1:
           object++;
+          mode = 2;
           break;
         case 2:
           object++;
@@ -109,5 +119,58 @@ void LogicOfWork (byte result_of_scankeys)
           break; 
       }      
       break;    
+  }
+}
+
+void Work ()
+{
+  switch (mode)
+    case 0:
+      object = 0;
+      //dreams ()
+      break;
+    case 1:
+      object = power_for_start;
+      if ((millis () - timer_for_start) >= delay_for_start) {
+        object = previous_power;
+        mode = 2;
+      }
+      break;
+    case 2:
+
+      break;
+}
+
+void ChangingTheObject ()
+{
+  byte coefficient = 1;
+  if ((result_of_scankeys != 2) && (result_of_scankeys != 3)) {
+    timer_for_change_object = 0;
+    flag_for_change_object = 0;
+  } else { 
+    if (result_of_scankeys == 3)
+      coefficient = -1;
+    switch (flag_for_change_object) {
+      case 0:
+        timer_for_change_object = millis ();
+        flag_for_change_object = 1;
+        break;
+      case 1:
+        if (millis () - timer_for_change_object > 50) { //заменить на переменную
+          object += (little_step * coefficient);
+          flag_for_change_object = 2;
+        }
+        break;
+      case 2:
+        if (millis () - timer_for_change_object > 500)
+          flag_for_change_object = 3;
+        break;
+      case 3:
+        if (millis () - timer_for_change_object > 100){
+          object += (big_step * coefficient);
+          timer_for_change_object = millis ();
+        }
+        break;
+    }
   }
 }
