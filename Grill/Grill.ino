@@ -21,15 +21,18 @@ byte power_for_start = 30;//Мощность на которой происхо�
 byte previous_power = power_for_start;//Мощность, к которой возвращается насос после включения;
 byte minimum_of_power = 20; // Минимальное значение мощности
 byte maximum_of_power = 255; //Максимально значение мощности
-byte step_power = 1; // Шаг, с которым уменьшается / увеличивается мощность
+byte step_power = 3; // Шаг, с которым уменьшается / увеличивается мощность
 long previous_time_change_power = 0; //Переменная, которая хранит время, прошедшее с последнего подтягивания мощности
-long delay_for_change_power = 10; //Время, которое должно пройти для следующего подтягивания мощности
+long delay_for_change_power = 0; //Время, которое должно пройти для следующего подтягивания мощности
 long timer_for_start = 0; //Переменная, которая хранит время прошедшее с запуска насоса
 long delay_for_start = 1500; //Время, которое включается насос
 long timer_for_change_object = 0; //Переменная, которая хранит время для задержек изменеия цели
 byte flag_for_change_object; //флаг, используемый в функции ChangingTheObject
-byte little_step = 2; //маленький шаг изменения цели
+byte little_step = 3; //маленький шаг изменения цели
 byte big_step = 10; //большой шаг изменения цели
+byte size_of_graph = 0;
+byte graph_power = 0;
+byte graph_object = 0;
 
 void setup() 
 {
@@ -38,6 +41,8 @@ void setup()
   Serial.begin (9600);
   digitalWrite (led_screen, HIGH);
   myGLCD.setFont (BigFont);
+  myGLCD.setColor(VGA_LIME);
+  //myGLCD.clrScr();
 }
 
 void loop ()
@@ -48,7 +53,8 @@ void loop ()
   ChangingTheObject ();
   PowerIncreaseDecrease (object);
   Monitor ();
-  MonitorOnComputer ();
+  //MonitorOnComputer ();
+  graph ();
 }
 
 byte ScanKeys () //сканируем кнопки
@@ -71,14 +77,18 @@ byte ScanKeys () //сканируем кнопки
 void PowerIncreaseDecrease (byte power_after_change)
 {
   if ((millis () - previous_time_change_power) >= delay_for_change_power) {
-    if (power > power_after_change) {
-      power -= step_power;
-      if (power < minimum_of_power)
-        power = 0;
-    } else if (power < power_after_change) {
-      power += step_power;
-      if (power > maximum_of_power)
-        power = maximum_of_power;
+    if (abs (power - power_after_change) <= step_power) 
+      power = power_after_change;
+    else {
+      if (power > power_after_change) {
+        power -= step_power;
+        if (power < minimum_of_power)
+          power = 0;
+      } else if (power < power_after_change) {
+        power += step_power;
+        if (power > maximum_of_power)
+          power = maximum_of_power;
+      }
     }
   previous_time_change_power = millis ();
   }
@@ -188,12 +198,14 @@ void ChangingTheObject ()
 
 void Monitor ()
 {
-  myGLCD.print("MODE: ", 20, 20);
+  myGLCD.setColor (VGA_LIME);
+  //myGLCD.print("MODE: ", 20, 20);
   myGLCD.printNumI(mode, 130, 20);
-  myGLCD.print("OBJECT: ", 20, 40);
+  //myGLCD.print("OBJECT: ", 20, 40);
   myGLCD.printNumI(object, 130, 40, 3);
-  myGLCD.print("POWER: ", 20, 60);
+  //myGLCD.print("POWER: ", 20, 60);
   myGLCD.printNumI(power, 130, 60, 3);
+  /*
   switch (result_of_scankeys) {
     case 0:
       myGLCD.print("            ", 20, 80);
@@ -216,6 +228,7 @@ void Monitor ()
       myGLCD.print("is pressed:", 20, 100);
       break;
   }
+  */
 }
 
 void MonitorOnComputer ()
@@ -227,4 +240,33 @@ void MonitorOnComputer ()
   Serial.print ("POWER: ");
   Serial.println (power);
   Serial.println ();
+}
+
+void graph ()
+{
+  if (graph_power < power) {
+    myGLCD.setColor (VGA_WHITE);
+    myGLCD.fillRect (10 + graph_power , 180, 10 + graph_power + power - graph_power, 150);
+    graph_power = power;
+  }
+  if (graph_power > power) {
+    myGLCD.setColor (VGA_BLACK);
+    myGLCD.fillRect (10 + power, 180, 10 + power + graph_power - power, 150);
+    graph_power = power;
+  }
+  if (graph_object != object) {
+    if (graph_object != NULL)
+      if (graph_object > graph_power) {
+        myGLCD.setColor (VGA_BLACK);
+        myGLCD.fillRect (10 + graph_object, 180, 10 + graph_object, 150);
+      } else {
+        myGLCD.setColor (VGA_WHITE);
+        myGLCD.fillRect (10 + graph_object, 180, 10 + graph_object, 150);
+      }
+    graph_object = object;
+    if (graph_object != graph_power){
+      myGLCD.setColor (VGA_RED);
+      myGLCD.fillRect (10 + graph_object, 180, 10 + graph_object, 150);
+    }
+  }
 }
