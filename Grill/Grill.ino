@@ -1,10 +1,12 @@
 #include   "Grill.h"
+#include   "Visual.h"
 #include   <SdFat.h>
 #include   <SPI.h>
 #include   <UTFT.h>
 #include   <UTFT_SdRaw.h>
 #define    SD_CHIP_SELECT SS
 extern uint8_t BigFont[];
+extern uint8_t SevenSegNumFont[];
 
 UTFT myGLCD(TFT01_24SP, 5, 7, 2, 3, 4);
 
@@ -30,243 +32,180 @@ long timer_for_change_object = 0; //Переменная, которая хра�
 byte flag_for_change_object; //флаг, используемый в функции ChangingTheObject
 byte little_step = 3; //маленький шаг изменения цели
 byte big_step = 10; //большой шаг изменения цели
-byte size_of_graph = 0;
 byte graph_power = 0;
 byte graph_object = 0;
 
 void setup() 
 {
-  pinMode (led_screen, OUTPUT);
-  myGLCD.InitLCD ();
-  Serial.begin (9600);
-  digitalWrite (led_screen, HIGH);
-  myGLCD.setFont (BigFont);
-  myGLCD.setColor(VGA_LIME);
-  //myGLCD.clrScr();
+    pinMode (led_screen, OUTPUT);
+    myGLCD.InitLCD ();
+    Serial.begin (9600);
+    digitalWrite (led_screen, HIGH);
+    myGLCD.setFont (SevenSegNumFont);
+    myGLCD.setColor(VGA_LIME);
+    myGLCD.clrScr();
 }
 
 void loop ()
 {
-  result_of_scankeys = ScanKeys ();
-  LogicOfWork (result_of_scankeys);
-  Work ();
-  ChangingTheObject ();
-  PowerIncreaseDecrease (object);
-  Monitor ();
-  //MonitorOnComputer ();
-  graph ();
+    result_of_scankeys = ScanKeys ();
+    LogicOfWork (result_of_scankeys);
+    Work ();
+    ChangingTheObject ();
+    PowerIncreaseDecrease (object);
+    Monitor ();
+    //MonitorOnComputer ();
+    Scale();
 }
 
 byte ScanKeys () //сканируем кнопки
 {
-  byte result = 0;
-  if (digitalRead (in_on) == HIGH) {
-    result = 1;   
-  } else if (digitalRead (in_powerup) == HIGH) {
-    result = 2; 
-  } else if ( digitalRead (in_powerdown) == HIGH) {
-    result = 3;
-  } else if ( digitalRead (in_sleep) == HIGH) {
-    result = 4;
-  } else {
-    result = 0;
-  }
-  return result;
+    byte result = 0;
+    if (digitalRead (in_on) == HIGH) {
+        result = 1;   
+    } else if (digitalRead (in_powerup) == HIGH) {
+        result = 2; 
+    } else if ( digitalRead (in_powerdown) == HIGH) {
+        result = 3;
+    } else if ( digitalRead (in_sleep) == HIGH) {
+        result = 4;
+    } else {
+        result = 0;
+    }
+    return result;
 }
 
 void PowerIncreaseDecrease (byte power_after_change)
 {
-  if ((millis () - previous_time_change_power) >= delay_for_change_power) {
-    if (abs (power - power_after_change) <= step_power) 
-      power = power_after_change;
-    else {
-      if (power > power_after_change) {
-        power -= step_power;
-        if (power < minimum_of_power)
-          power = 0;
-      } else if (power < power_after_change) {
-        power += step_power;
-        if (power > maximum_of_power)
-          power = maximum_of_power;
-      }
+    if ((millis () - previous_time_change_power) >= delay_for_change_power) {
+        if (abs (power - power_after_change) <= step_power) 
+            power = power_after_change;
+        else {
+            if (power > power_after_change) {
+                power -= step_power;
+                if (power < minimum_of_power)
+                    power = 0;
+            } else if (power < power_after_change) {
+                power += step_power;
+                if (power > maximum_of_power)
+                    power = maximum_of_power;
+            }
+        }
+        previous_time_change_power = millis ();
     }
-  previous_time_change_power = millis ();
-  }
 }
 
 void LogicOfWork (byte result_of_scankeys) 
 {
-  switch (result_of_scankeys) {
-    case 1:
-      switch (mode) {
-        case 0:
-          mode = 1;
-          timer_for_start = millis ();
-          break;
+    switch (result_of_scankeys) {
         case 1:
-          mode = 3;
-          break;
+            switch (mode) {
+                case 0:
+                    mode = 1;
+                    timer_for_start = millis ();
+                    break;
+                case 1:
+                    mode = 3;
+                    break;
+                case 2:
+                    mode = 3;
+                    break; 
+            }
+            break;
         case 2:
-          mode = 3;
-          break; 
-      }
-      break;
-    case 2:
-      switch (mode) {
-        case 1:
-          mode = 2;
-          break;
+            switch (mode) {
+                case 1:
+                    mode = 2;
+                    break;
+                case 3:
+                    mode = 2;
+                    break; 
+            }      
+            break;
         case 3:
-          mode = 2;
-          break; 
-      }      
-      break;
-    case 3:
-      switch (mode) {
-        case 3:
-          mode = 2;
-          break; 
-      }
-      break;
-    case 4:
-      switch (mode) {
-        case 1:
-          mode = 0;
-          break;
-        case 2:
-          mode = 0;
-          break;
-        case 3:
-          mode = 2;
-          break; 
-      }      
-      break;    
-  }
+            switch (mode) {
+                case 3:
+                    mode = 2;
+                    break; 
+            }
+            break;
+        case 4:
+            switch (mode) {
+                case 1:
+                    mode = 0;
+                    break;
+                case 2:
+                    mode = 0;
+                    break;
+                case 3:
+                    mode = 2;
+                    break; 
+            }      
+            break;    
+    }
 }
 
 void Work ()
 {
-  switch (mode) {
-    case 0:
-      object = 0;
-      //dreams ()
-      break;
-    case 1:
-      power = power_for_start;
-      object = power_for_start;
-      if ((millis () - timer_for_start) >= delay_for_start) {
-        object = previous_power;
-        mode = 2;
-      }
-      break;
-  }
+    switch (mode) {
+        case 0:
+            object = 0;
+            //dreams ()
+            break;
+        case 1:
+            power = power_for_start;
+            object = power_for_start;
+            if ((millis () - timer_for_start) >= delay_for_start) {
+                object = previous_power;
+                mode = 2;
+            }
+            break;
+    }
 }
 
 void ChangingTheObject ()
 {
-  byte coefficient = 1;
-  if ((result_of_scankeys != 2) && (result_of_scankeys != 3)) {
-    timer_for_change_object = 0;
-    flag_for_change_object = 0;
-  } else { 
-    if (result_of_scankeys == 3)
-      coefficient = -1;
-    switch (flag_for_change_object) {
-      case 0:
-        timer_for_change_object = millis ();
-        flag_for_change_object = 1;
-        break;
-      case 1:
-        if (millis () - timer_for_change_object > 50) { //заменить на переменную
-          object += (little_step * coefficient);
-          flag_for_change_object = 2;
+    byte coefficient = 1;
+    if ((result_of_scankeys != 2) && (result_of_scankeys != 3)) {
+        timer_for_change_object = 0;
+        flag_for_change_object = 0;
+    } else { 
+        if (result_of_scankeys == 3)
+            coefficient = -1;
+        switch (flag_for_change_object) {
+            case 0:
+                timer_for_change_object = millis ();
+                flag_for_change_object = 1;
+                break;
+            case 1:
+                if (millis () - timer_for_change_object > 50) { //заменить на переменную
+                    object += (little_step * coefficient);
+                    flag_for_change_object = 2;
+                }
+                break;
+            case 2:
+                if (millis () - timer_for_change_object > 500)
+                    flag_for_change_object = 3;
+                break;
+            case 3:
+                if (millis () - timer_for_change_object > 100){
+                    object += (big_step * coefficient);
+                    timer_for_change_object = millis ();
+                }
+                break;
         }
-        break;
-      case 2:
-        if (millis () - timer_for_change_object > 500)
-          flag_for_change_object = 3;
-        break;
-      case 3:
-        if (millis () - timer_for_change_object > 100){
-          object += (big_step * coefficient);
-          timer_for_change_object = millis ();
-        }
-        break;
     }
-  }
 }
 
-void Monitor ()
-{
-  myGLCD.setColor (VGA_LIME);
-  //myGLCD.print("MODE: ", 20, 20);
-  myGLCD.printNumI(mode, 130, 20);
-  //myGLCD.print("OBJECT: ", 20, 40);
-  myGLCD.printNumI(object, 130, 40, 3);
-  //myGLCD.print("POWER: ", 20, 60);
-  myGLCD.printNumI(power, 130, 60, 3);
-  /*
-  switch (result_of_scankeys) {
-    case 0:
-      myGLCD.print("            ", 20, 80);
-      myGLCD.print("            ", 20, 100);
-      break;
-    case 1:
-      myGLCD.print("The button A", 20, 80);
-      myGLCD.print("is pressed:", 20, 100);
-      break;
-    case 2:
-      myGLCD.print("The button B", 20, 80);
-      myGLCD.print("is pressed:", 20, 100);
-      break;
-    case 3:
-      myGLCD.print("The button C", 20, 80);
-      myGLCD.print("is pressed:", 20, 100);
-      break;
-    case 4:
-      myGLCD.print("The button D", 20, 80);
-      myGLCD.print("is pressed:", 20, 100);
-      break;
-  }
-  */
-}
+
 
 void MonitorOnComputer ()
 {
-  Serial.print ("MODE: ");
-  Serial.println (mode);
-  Serial.print ("OBJECT: ");
-  Serial.println (object);
-  Serial.print ("POWER: ");
-  Serial.println (power);
-  Serial.println ();
-}
-
-void graph ()
-{
-  if (graph_power < power) {
-    myGLCD.setColor (VGA_WHITE);
-    myGLCD.fillRect (10 + graph_power , 180, 10 + graph_power + power - graph_power, 150);
-    graph_power = power;
-  }
-  if (graph_power > power) {
-    myGLCD.setColor (VGA_BLACK);
-    myGLCD.fillRect (10 + power, 180, 10 + power + graph_power - power, 150);
-    graph_power = power;
-  }
-  if (graph_object != object) {
-    if (graph_object != NULL)
-      if (graph_object > graph_power) {
-        myGLCD.setColor (VGA_BLACK);
-        myGLCD.fillRect (10 + graph_object, 180, 10 + graph_object, 150);
-      } else {
-        myGLCD.setColor (VGA_WHITE);
-        myGLCD.fillRect (10 + graph_object, 180, 10 + graph_object, 150);
-      }
-    graph_object = object;
-    if (graph_object != graph_power){
-      myGLCD.setColor (VGA_RED);
-      myGLCD.fillRect (10 + graph_object, 180, 10 + graph_object, 150);
-    }
-  }
+    Serial.print ("MODE: ");
+    Serial.println (mode);
+    Serial.print ("OBJECT: ");
+    Serial.println (object);
+    Serial.print ("POWER: ");
+    Serial.println (power);
+    Serial.println ();
 }
