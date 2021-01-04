@@ -32,8 +32,6 @@ long timer_for_change_object = 0; //Переменная, которая хра�
 byte flag_for_change_object; //флаг, используемый в функции ChangingTheObject
 byte little_step = 3; //маленький шаг изменения цели
 byte big_step = 10; //большой шаг изменения цели
-byte graph_power = 0;
-byte graph_object = 0;
 
 void setup() 
 {

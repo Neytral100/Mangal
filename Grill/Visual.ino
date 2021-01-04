@@ -2,6 +2,8 @@ byte upper_bound_of_scale = 190;
 byte lower_bound_of_scale = 240;
 byte width_of_object_pointer = 3;
 byte object_in_percent = 0;
+byte graph_power = 0;//мощность, которая в данный момент выводится на экран
+byte graph_object = 0;//цель, которая в данный момент выводится на экран
 
 void Scale ()
 {   
