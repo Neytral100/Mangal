@@ -5,8 +5,10 @@
 #include   <UTFT.h>
 #include   <UTFT_SdRaw.h>
 #define    SD_CHIP_SELECT SS
-extern uint8_t BigFont[];
-extern uint8_t SevenSegNumFont[];
+//extern uint8_t BigFont[];
+//extern uint8_t SevenSegNumFont[];
+//extern uint8_t SixteenSegment24x36[];
+extern uint8_t Grotesk24x48[];
 
 UTFT myGLCD(TFT01_24SP, 5, 7, 2, 3, 4);
 
@@ -21,11 +23,11 @@ byte object; //цель, до которой будет подтягиватьс
 byte power = 0; // Мощность, которая выдаётся на насос
 byte power_for_start = 30;//Мощность на которой происходит включение насоса
 byte previous_power = power_for_start;//Мощность, к которой возвращается насос после включения;
-byte minimum_of_power = 20; // Минимальное значение мощности
-byte maximum_of_power = 255; //Максимально значение мощности
+byte minimum_of_object = 20; // Минимальное значение цели
+byte maximum_of_object = 255; //Максимальное значение цели
 byte step_power = 3; // Шаг, с которым уменьшается / увеличивается мощность
 long previous_time_change_power = 0; //Переменная, которая хранит время, прошедшее с последнего подтягивания мощности
-long delay_for_change_power = 0; //Время, которое должно пройти для следующего подтягивания мощности
+long delay_for_change_power = 150; //Время, которое должно пройти для следующего подтягивания мощности
 long timer_for_start = 0; //Переменная, которая хранит время прошедшее с запуска насоса
 long delay_for_start = 1500; //Время, которое включается насос
 long timer_for_change_object = 0; //Переменная, которая хранит время для задержек изменеия цели
@@ -39,7 +41,7 @@ void setup()
     myGLCD.InitLCD ();
     Serial.begin (9600);
     digitalWrite (led_screen, HIGH);
-    myGLCD.setFont (SevenSegNumFont);
+    myGLCD.setFont (Grotesk24x48);
     myGLCD.setColor(VGA_LIME);
     myGLCD.clrScr();
 }
@@ -47,10 +49,9 @@ void setup()
 void loop ()
 {
     result_of_scankeys = ScanKeys ();
-    LogicOfWork (result_of_scankeys);
+    LogicOfWork ();
     Work ();
-    ChangingTheObject ();
-    PowerIncreaseDecrease (object);
+    PowerIncreaseDecrease ();
     Monitor ();
     //MonitorOnComputer ();
     Scale();
@@ -73,27 +74,22 @@ byte ScanKeys () //сканируем кнопки
     return result;
 }
 
-void PowerIncreaseDecrease (byte power_after_change)
+void PowerIncreaseDecrease ()
 {
     if ((millis () - previous_time_change_power) >= delay_for_change_power) {
-        if (abs (power - power_after_change) <= step_power) 
-            power = power_after_change;
+        if (abs (power - object) <= step_power) 
+            power = object;
         else {
-            if (power > power_after_change) {
+            if (power > object)
                 power -= step_power;
-                if (power < minimum_of_power)
-                    power = 0;
-            } else if (power < power_after_change) {
+            else if (power < object)
                 power += step_power;
-                if (power > maximum_of_power)
-                    power = maximum_of_power;
-            }
         }
         previous_time_change_power = millis ();
     }
 }
 
-void LogicOfWork (byte result_of_scankeys) 
+void LogicOfWork () 
 {
     switch (result_of_scankeys) {
         case 1:
@@ -117,6 +113,7 @@ void LogicOfWork (byte result_of_scankeys)
                     break;
                 case 3:
                     mode = 2;
+                    object = previous_power;
                     break; 
             }      
             break;
@@ -124,6 +121,7 @@ void LogicOfWork (byte result_of_scankeys)
             switch (mode) {
                 case 3:
                     mode = 2;
+                    object = previous_power;
                     break; 
             }
             break;
@@ -137,6 +135,7 @@ void LogicOfWork (byte result_of_scankeys)
                     break;
                 case 3:
                     mode = 2;
+                    object = previous_power;
                     break; 
             }      
             break;    
@@ -158,16 +157,24 @@ void Work ()
                 mode = 2;
             }
             break;
+        case 2:
+            ChangingTheObject ();
+            previous_power = power;
+            break;
+        case 3: 
+            object = 255;
+            break;
     }
 }
 
 void ChangingTheObject ()
 {
-    byte coefficient = 1;
-    if ((result_of_scankeys != 2) && (result_of_scankeys != 3)) {
-        timer_for_change_object = 0;
-        flag_for_change_object = 0;
-    } else { 
+    if ((result_of_scankeys != 2) && (result_of_scankeys != 3)) { 
+        timer_for_change_object = 0;  
+        flag_for_change_object = 0;    
+    } else {                                                        
+        int coefficient = 1;
+        int object_for_check = object;
         if (result_of_scankeys == 3)
             coefficient = -1;
         switch (flag_for_change_object) {
@@ -175,24 +182,31 @@ void ChangingTheObject ()
                 timer_for_change_object = millis ();
                 flag_for_change_object = 1;
                 break;
-            case 1:
-                if (millis () - timer_for_change_object > 50) { //заменить на переменную
-                    object += (little_step * coefficient);
+            case 1:                                           
+                if (millis () - timer_for_change_object > 50) { //изменение цели после первого нажатия происходит по прошествию 0,05 с
+                    object_for_check += (little_step * coefficient);
                     flag_for_change_object = 2;
                 }
                 break;
             case 2:
-                if (millis () - timer_for_change_object > 500)
+                if (millis () - timer_for_change_object > 500) //задержка между первым изменением цели после нажатия и последующими состовляет 0,5 с
                     flag_for_change_object = 3;
                 break;
             case 3:
-                if (millis () - timer_for_change_object > 100){
-                    object += (big_step * coefficient);
+                if (millis () - timer_for_change_object > 100){ //изменение цели происходит раз в 0,01 с
+                    object_for_check += (big_step * coefficient);
                     timer_for_change_object = millis ();
                 }
                 break;
         }
+        if (object_for_check > maximum_of_object) 
+            object = maximum_of_object;
+        else if (object_for_check < minimum_of_object)
+            object = minimum_of_object;
+        else 
+            object = object_for_check;
     }
+
 }
 
 
